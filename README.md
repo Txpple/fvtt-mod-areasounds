@@ -96,6 +96,10 @@ api.status();                       // { ducked, darkness, running: [set ids] } 
 Sets live in the scene's `flags.fvtt-mod-areasounds.sets`. Malformed values are repaired to safe
 defaults, never thrown on. The Open Roll 5e dnd5e MCP server writes the same flags through its
 `configure-area-sounds` tool, so a scene's sound can also be authored from Claude Code.
+`contracts/sets.json` is that flag's contract: every field of a set with its default and its clamp,
+the flag's place and the night rule, held to the engine by `tools/test-engine.mjs`. A tool that
+writes the flag tests against it and against `scripts/engine.js` from a clone beside it, and its
+`version` moves when a field, a default, a clamp or the flag's place changes.
 
 ## Repository layout
 
@@ -109,8 +113,10 @@ scripts/
   config.js              the Area Sounds tab on the scene configuration and the set editor
   picker.js              the audio file picker
 styles/  templates/      the tab, the editor and the picker
+contracts/
+  sets.json              a scene's sound sets as a tool that writes them reads them
 tools/
-  test-engine.mjs        exercises the scheduling engine
+  test-engine.mjs        exercises the scheduling engine and holds contracts/sets.json to it (npm test)
   verify-areasounds.mjs  the live suite against the local sandbox
 design.md                what was decided while building
 ```

@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "description": "Development tooling for Area Sounds. NOTHING HERE SHIPS — the module is plain ES modules loaded straight from scripts/, with no build step; this file declares what tools/ imports.",
+  "scripts": {
+    "test": "node tools/test-engine.mjs"
+  },
   "devDependencies": {
     "fvtt-mcp-dnd5e": "file:../fvtt-mcp-dnd5e"
   },

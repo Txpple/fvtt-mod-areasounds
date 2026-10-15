@@ -1,0 +1,33 @@
+{
+  "contract": "sets",
+  "module": "fvtt-mod-areasounds",
+  "version": 1,
+  "title": "Area Sounds: a scene's sound sets",
+  "description": "What Area Sounds reads off a scene, for a tool that writes it (the dnd5e MCP's configure-area-sounds). The sets live in one flag on the Scene; the module reads the array and repairs every entry through scripts/engine.js normalizeSet on every read, so a malformed set plays as its repaired self and never throws. `set` gives each field its type, its default when missing or unreadable, and its clamp; a number field takes `Number.isFinite(+v)`, so null, an empty string and an empty array read as 0 and land on the floor. The legacy scope is read when the current one holds no sets (a world whose GM has not loaded the module since its rename) and moved on the GM's next load. tools/test-engine.mjs holds this file to normalizeSet; `version` moves when a field is renamed or removed, a default or a clamp changes, or the flag moves.",
+  "flag": {
+    "document": "Scene",
+    "scope": "fvtt-mod-areasounds",
+    "key": "sets",
+    "shape": "array of sets",
+    "legacyScope": "fvtt-mod-soundscape"
+  },
+  "library": {
+    "path": "areasounds-sfx/library.json",
+    "legacyPath": "soundscape-sfx/library.json"
+  },
+  "set": {
+    "id": { "type": "string", "default": "a random 10-character base-36 id" },
+    "name": { "type": "string", "default": "New Sound Set", "trimmed": true },
+    "active": { "type": "boolean", "default": true, "falseOnlyWhen": "false" },
+    "files": { "type": "array", "items": "string", "default": [], "dropped": "an entry that is not a non-empty string" },
+    "playStyle": { "type": "string", "enum": ["interval", "loop"], "default": "interval" },
+    "interval": { "type": "number", "default": 25, "min": 1, "max": 3600, "unit": "seconds of silence between plays" },
+    "intervalVariation": { "type": "number", "default": 5, "min": 0, "max": "interval", "unit": "seconds either side" },
+    "crossfade": { "type": "number", "default": 4, "min": 0.5, "max": 30, "unit": "seconds" },
+    "volume": { "type": "number", "default": 0.8, "min": 0, "max": 1 },
+    "volumeVariation": { "type": "number", "default": 0, "min": 0, "max": 1, "unit": "fraction, attenuate only" },
+    "pitchVariation": { "type": "number", "default": 0, "min": 0, "max": 1, "unit": "octaves either side" },
+    "whenToPlay": { "type": "string", "enum": ["always", "day", "night"], "default": "always" }
+  },
+  "night": { "darkness": 0.5, "rule": "a set for night plays at a scene darkness of 0.5 or more, a set for day below it" }
+}

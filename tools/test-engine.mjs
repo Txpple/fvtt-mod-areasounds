@@ -14,6 +14,8 @@ import {
   gateAllows,
   normalizeSet,
 } from "../scripts/engine.js";
+import { LIBRARY_PATH, MODULE_ID, getRawSets } from "../scripts/store.js";
+import { readFileSync } from "node:fs";
 
 /* ---------------------------------- fake driver ---------------------------------- */
 
@@ -138,6 +140,48 @@ console.log("pure helpers");
   const n = normalizeSet({ interval: "nope", volume: 7, whenToPlay: "dusk", files: ["a", 3, "", "b"] });
   check("normalizeSet repairs garbage", n.interval === 25 && n.volume === 1 && n.whenToPlay === "always" && n.files.length === 2);
   check("normalizeSet clamps variation to interval", normalizeSet({ interval: 10, intervalVariation: 50 }).intervalVariation === 10);
+}
+
+/* ------------------------ the contract (contracts/sets.json) ------------------------ */
+
+// What a tool that writes a scene's sets reads as the module's word (the dnd5e MCP tests against
+// this file and this engine from its clone): every field, default, clamp and enum, the flag's
+// place and the night rule, held here to normalizeSet and store.js so the file cannot drift.
+console.log("the contract");
+{
+  const contract = JSON.parse(readFileSync(new URL("../contracts/sets.json", import.meta.url), "utf8"));
+  const fields = contract.set;
+  const repaired = normalizeSet({});
+  check("the contract names every field normalizeSet returns, and no other",
+    JSON.stringify(Object.keys(fields).sort()) === JSON.stringify(Object.keys(repaired).sort()),
+    `contract ${Object.keys(fields).sort()} vs engine ${Object.keys(repaired).sort()}`);
+  for (const [name, f] of Object.entries(fields)) {
+    if (name === "id") continue;
+    check(`${name}: the default is the engine's (${JSON.stringify(f.default)})`, JSON.stringify(repaired[name]) === JSON.stringify(f.default),
+      `engine ${JSON.stringify(repaired[name])}`);
+    if (f.type === "number") {
+      const max = f.max === "interval" ? 3600 : f.max;
+      const base = f.max === "interval" ? { interval: 3600 } : {};
+      check(`${name}: below the floor reads as ${f.min}`, normalizeSet({ ...base, [name]: -1e9 })[name] === f.min);
+      check(`${name}: above the ceiling reads as ${f.max}`, normalizeSet({ ...base, [name]: 1e9 })[name] === max);
+      check(`${name}: unreadable reads as the default`, normalizeSet({ [name]: "nope" })[name] === f.default);
+    }
+    if (f.enum) {
+      for (const v of f.enum) check(`${name}: "${v}" stands`, normalizeSet({ [name]: v })[name] === v);
+      check(`${name}: anything else reads as "${f.default}"`, normalizeSet({ [name]: "dusk" })[name] === f.default);
+    }
+  }
+  check("an id is made when missing: 10 base-36 characters", /^[0-9a-z]{1,10}$/.test(repaired.id) && normalizeSet({ id: "kept" }).id === "kept");
+  check("intervalVariation's ceiling is the set's own interval", normalizeSet({ interval: 10, intervalVariation: 50 }).intervalVariation === 10);
+  check("the flag is the module's scope and key", contract.flag.scope === MODULE_ID && contract.flag.key === "sets"
+    && getRawSets({ flags: { [MODULE_ID]: { sets: ["a"] } } })[0] === "a");
+  check("the legacy scope is read when the current one holds none",
+    getRawSets({ flags: { [contract.flag.legacyScope]: { sets: ["old"] } } })[0] === "old"
+    && getRawSets({ flags: { [MODULE_ID]: { sets: ["new"] }, [contract.flag.legacyScope]: { sets: ["old"] } } })[0] === "new");
+  check("the library's path is the module's", contract.library.path === LIBRARY_PATH);
+  check(`night is a darkness of ${contract.night.darkness} or more`, gateAllows({ whenToPlay: "night" }, contract.night.darkness)
+    && !gateAllows({ whenToPlay: "night" }, contract.night.darkness - 0.01) && gateAllows({ whenToPlay: "day" }, contract.night.darkness - 0.01));
+  check("the contract has a version", Number.isInteger(contract.version));
 }
 
 /* --------------------------------- interval sets --------------------------------- */
